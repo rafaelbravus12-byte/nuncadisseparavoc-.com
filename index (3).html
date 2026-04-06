@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <title>Jogo das Verdades Proibidas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ============================================================ VARIÁVEIS */
+    :root {
+      --bg:       #080808;
+      --surface:  #111111;
+      --border:   #1e1e1e;
+      --red:      #c0392b;
+      --red-glow: rgba(192,57,43,0.35);
+      --red-soft: #e74c3c;
+      --white:    #f0ece4;
+      --muted:    #6b6b6b;
+      --card:     #0e0e0e;
+      --radius:   18px;
+      --font-h:   'Playfair Display', Georgia, serif;
+      --font-b:   'DM Sans', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--white);
+      font-family: var(--font-b);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ============================================================ UTILITÁRIOS */
+    .hidden { display: none !important; }
+
+    .screen {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 20px 52px;
+      animation: fadeUp .5s ease both;
+    }
+
+    @keyframes fadeUp   { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes pulse-r  { 0%,100%{box-shadow:0 0 0 0 var(--red-glow)} 50%{box-shadow:0 0 28px 8px var(--red-glow)} }
+    @keyframes flicker  { 0%,95%,100%{opacity:1} 96%{opacity:.7} 97%{opacity:1} 98%{opacity:.5} 99%{opacity:1} }
+    @keyframes cardIn   { from{opacity:0;transform:scale(.93) translateY(14px)} to{opacity:1;transform:scale(1) translateY(0)} }
+    @keyframes optIn    { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes fillBar  { from{width:0} }
+    @keyframes spin     { to{transform:rotate(360deg)} }
+    @keyframes numPop   { 0%{transform:scale(1)} 50%{transform:scale(1.06)} 100%{transform:scale(1)} }
+
+    /* ============================================================ BOTÕES */
+    .btn {
+      display: block; width: 100%; max-width: 400px;
+      padding: 17px 24px; border: none; border-radius: 14px;
+      font-family: var(--font-b); font-size: 1rem; font-weight: 500;
+      cursor: pointer; text-align: center;
+      transition: transform .14s, filter .14s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: var(--red); color:#fff; animation:pulse-r 2.8s ease infinite; letter-spacing:.03em; }
+    .btn-primary:hover { filter:brightness(1.14); }
+    .btn-secondary { background:transparent; border:1px solid var(--border); color:var(--muted); font-size:.88rem; }
+    .btn-secondary:hover { border-color:var(--muted); color:var(--white); }
+
+    /* ============================================================ LANDING */
+    #screen-landing { justify-content:flex-start; padding-top:0; }
+
+    .hero {
+      width:100%; min-height:60dvh;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%,rgba(192,57,43,.22) 0%,transparent 70%),
+        linear-gradient(180deg,#0f0505 0%,var(--bg) 100%);
+      display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+      padding:0 24px 44px; position:relative; overflow:hidden;
+    }
+    .hero::before {
+      content:''; position:absolute; inset:0; pointer-events:none;
+      background-image:
+        repeating-linear-gradient(0deg,transparent,transparent 59px,rgba(255,255,255,.015) 60px),
+        repeating-linear-gradient(90deg,transparent,transparent 59px,rgba(255,255,255,.015) 60px);
+    }
+
+    .badge {
+      background:rgba(192,57,43,.18); border:1px solid rgba(192,57,43,.4);
+      color:var(--red-soft); font-size:.72rem; font-weight:500;
+      letter-spacing:.12em; text-transform:uppercase;
+      padding:6px 14px; border-radius:100px; margin-bottom:20px;
+      animation:flicker 6s ease infinite;
+    }
+    .hero-title { font-family:var(--font-h); font-size:clamp(2rem,9vw,3.2rem); font-weight:900; line-height:1.1; text-align:center; margin-bottom:14px; }
+    .hero-title em { font-style:italic; color:var(--red-soft); }
+    .hero-sub { font-size:.95rem; color:var(--muted); text-align:center; max-width:290px; line-height:1.5; margin-bottom:28px; }
+
+    .stats-row { display:flex; gap:24px; justify-content:center; margin:26px 0 28px; width:100%; }
+    .stat { display:flex; flex-direction:column; align-items:center; gap:2px; }
+    .stat-num { font-family:var(--font-h); font-size:1.5rem; font-weight:700; }
+    .stat-label { font-size:.68rem; color:var(--muted); letter-spacing:.04em; text-transform:uppercase; }
+
+    .urgency-bar {
+      background:rgba(192,57,43,.12); border:1px solid rgba(192,57,43,.3);
+      border-radius:10px; padding:10px 16px; text-align:center;
+      font-size:.82rem; color:var(--red-soft); margin-bottom:18px; max-width:400px; width:100%;
+    }
+    .social-proof { width:100%; max-width:420px; margin:28px 0 0; display:flex; flex-direction:column; gap:12px; }
+    .testimonial { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:15px 17px; position:relative; }
+    .testimonial::before { content:'"'; font-family:var(--font-h); font-size:3rem; color:var(--red); opacity:.22; position:absolute; top:-4px; left:10px; line-height:1; }
+    .t-text { font-size:.85rem; color:var(--white); line-height:1.5; padding-top:6px; }
+    .t-author { font-size:.73rem; color:var(--muted); margin-top:6px; }
+    .stars { color:var(--red-soft); font-size:.78rem; letter-spacing:2px; }
+    .sec-label { font-size:.68rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:32px 0 14px; align-self:flex-start; max-width:420px; }
+    .footer-note { font-size:.67rem; color:#333; text-align:center; margin-top:36px; letter-spacing:.04em; }
+
+    /* ============================================================ PAYWALL */
+    #screen-paywall { justify-content:center; }
+    .pw-inner { width:100%; max-width:420px; display:flex; flex-direction:column; align-items:center; }
+    .lock-icon { font-size:3.5rem; margin-bottom:18px; filter:drop-shadow(0 0 16px var(--red)); animation:pulse-r 2.5s ease infinite; }
+    .pw-title { font-family:var(--font-h); font-size:clamp(1.7rem,7vw,2.3rem); font-weight:900; text-align:center; line-height:1.15; margin-bottom:8px; }
+    .pw-sub { font-size:.88rem; color:var(--muted); text-align:center; max-width:270px; line-height:1.5; margin-bottom:28px; }
+    .price-box { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:26px 22px; width:100%; margin-bottom:18px; position:relative; overflow:hidden; }
+    .price-box::after { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--red),transparent); }
+    .p-orig { font-size:.83rem; color:var(--muted); text-decoration:line-through; margin-bottom:4px; }
+    .p-main { font-family:var(--font-h); font-size:3rem; font-weight:900; line-height:1; margin-bottom:4px; }
+    .p-main sup { font-size:1.1rem; vertical-align:top; margin-top:8px; display:inline-block; }
+    .p-desc { font-size:.78rem; color:var(--muted); margin-top:4px; }
+    .p-perks { list-style:none; margin-top:16px; display:flex; flex-direction:column; gap:7px; }
+    .p-perks li { font-size:.83rem; color:var(--white); display:flex; gap:10px; align-items:flex-start; }
+    .p-perks li span:first-child { color:var(--red-soft); flex-shrink:0; }
+    .secure-note { font-size:.7rem; color:var(--muted); text-align:center; margin-top:10px; }
+    #payment-loading { display:flex; flex-direction:column; align-items:center; gap:12px; padding:16px; }
+    .spinner { width:38px; height:38px; border:3px solid var(--border); border-top-color:var(--red); border-radius:50%; animation:spin .8s linear infinite; }
+
+    /* ============================================================ MODOS */
+    #screen-modes { justify-content:center; }
+    .modes-header { text-align:center; margin-bottom:32px; }
+    .modes-header h2 { font-family:var(--font-h); font-size:clamp(1.7rem,7vw,2.4rem); font-weight:900; line-height:1.15; margin-bottom:8px; }
+    .modes-header p { color:var(--muted); font-size:.88rem; max-width:290px; margin:0 auto; }
+    .modes-grid { width:100%; max-width:420px; display:flex; flex-direction:column; gap:12px; }
+    .mode-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:20px 18px; cursor:pointer; transition:border-color .2s,transform .15s,background .2s; display:flex; align-items:center; gap:16px; -webkit-tap-highlight-color:transparent; }
+    .mode-card:hover { border-color:var(--red); background:#120b0b; }
+    .mode-card:active { transform:scale(.98); }
+    .mode-emoji { font-size:2.2rem; flex-shrink:0; }
+    .mode-info { flex:1; }
+    .mode-name { font-family:var(--font-h); font-size:1.2rem; font-weight:700; margin-bottom:3px; }
+    .mode-desc { font-size:.78rem; color:var(--muted); line-height:1.4; }
+    .mode-arr { color:var(--muted); font-size:1.1rem; }
+
+    /* ============================================================ JOGO */
+    #screen-game { justify-content:flex-start; padding-top:24px; padding-bottom:32px; }
+
+    .game-header { width:100%; max-width:440px; display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    .mode-pill { background:rgba(192,57,43,.15); border:1px solid rgba(192,57,43,.35); color:var(--red-soft); font-size:.7rem; font-weight:500; letter-spacing:.1em; text-transform:uppercase; padding:5px 12px; border-radius:100px; }
+    .counter { font-size:.78rem; color:var(--muted); }
+
+    .prog-wrap { width:100%; max-width:440px; height:3px; background:var(--border); border-radius:100px; margin-bottom:26px; overflow:hidden; }
+    .prog-fill { height:100%; background:linear-gradient(90deg,var(--red),var(--red-soft)); border-radius:100px; transition:width .5s ease; }
+
+    .q-wrap { width:100%; max-width:440px; margin-bottom:22px; }
+    .q-num { font-size:.68rem; letter-spacing:.14em; text-transform:uppercase; color:var(--red-soft); opacity:.8; margin-bottom:12px; }
+    .q-text { font-family:var(--font-h); font-size:clamp(1.3rem,5vw,1.8rem); font-weight:700; font-style:italic; line-height:1.35; color:var(--white); animation:cardIn .4s cubic-bezier(.34,1.56,.64,1) both; }
+
+    /* Opções */
+    .opts-wrap { width:100%; max-width:440px; display:flex; flex-direction:column; gap:9px; margin-bottom:18px; }
+
+    .opt-btn {
+      width:100%; background:var(--card); border:1px solid var(--border);
+      border-radius:14px; padding:13px 16px; text-align:left;
+      font-family:var(--font-b); font-size:.88rem; color:var(--white);
+      cursor:pointer; transition:border-color .18s,background .18s,transform .12s;
+      -webkit-tap-highlight-color:transparent;
+      display:flex; align-items:center; gap:12px;
+    }
+    .opt-btn:nth-child(1){animation:optIn .32s ease both .04s}
+    .opt-btn:nth-child(2){animation:optIn .32s ease both .09s}
+    .opt-btn:nth-child(3){animation:optIn .32s ease both .14s}
+    .opt-btn:nth-child(4){animation:optIn .32s ease both .19s}
+    .opt-btn:nth-child(5){animation:optIn .32s ease both .25s}
+    .opt-btn:hover  { border-color:rgba(192,57,43,.45); background:#130a0a; }
+    .opt-btn:active { transform:scale(.98); }
+    .opt-btn.sel    { border-color:var(--red); background:rgba(192,57,43,.11); }
+
+    .opt-dot { width:20px; height:20px; flex-shrink:0; border-radius:50%; border:1.5px solid var(--border); transition:background .18s,border-color .18s; display:flex; align-items:center; justify-content:center; }
+    .opt-btn.sel .opt-dot { background:var(--red); border-color:var(--red); }
+    .dot-chk { display:none; font-size:.62rem; color:#fff; }
+    .opt-btn.sel .dot-chk { display:block; }
+
+    /* Campo escrita livre */
+    .opt-free {
+      width:100%; background:var(--card); border:1px solid var(--border);
+      border-radius:14px; overflow:hidden;
+      display:flex; flex-direction:column;
+      animation:optIn .32s ease both .25s;
+      transition:border-color .18s,background .18s;
+    }
+    .opt-free:hover  { border-color:rgba(192,57,43,.4); }
+    .opt-free.sel    { border-color:var(--red); background:rgba(192,57,43,.08); }
+    .free-label { padding:11px 16px 4px; font-size:.72rem; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+    .free-ta { width:100%; background:transparent; border:none; outline:none; resize:none; font-family:var(--font-b); font-size:.88rem; color:var(--white); padding:4px 16px 14px; min-height:68px; caret-color:var(--red-soft); }
+    .free-ta::placeholder { color:var(--muted); }
+
+    /* Botão avançar */
+    .btn-next { background:linear-gradient(135deg,var(--red) 0%,#8b0000 100%); color:#fff; max-width:440px; width:100%; }
+    .btn-next:disabled { opacity:.32; cursor:not-allowed; animation:none; box-shadow:none; }
+    .game-skip { font-size:.74rem; color:var(--muted); background:none; border:none; cursor:pointer; margin-top:9px; padding:5px; -webkit-tap-highlight-color:transparent; }
+    .game-skip:hover { color:var(--white); }
+
+    /* ============================================================ RESULTADO */
+    #screen-result { justify-content:flex-start; padding-top:40px; }
+    .res-inner { width:100%; max-width:440px; display:flex; flex-direction:column; align-items:center; }
+    .res-mode-lbl { font-size:.68rem; letter-spacing:.14em; text-transform:uppercase; color:var(--red-soft); margin-bottom:26px; opacity:.8; }
+
+    /* Círculo SVG */
+    .circle-wrap { position:relative; width:190px; height:190px; margin-bottom:26px; }
+    .circle-svg { width:100%; height:100%; transform:rotate(-90deg); }
+    .c-track { fill:none; stroke:var(--border); stroke-width:8; }
+    .c-fill  { fill:none; stroke:var(--red); stroke-width:8; stroke-linecap:round; stroke-dasharray:502; stroke-dashoffset:502; transition:stroke-dashoffset 1.6s cubic-bezier(.4,0,.2,1); filter:drop-shadow(0 0 8px rgba(192,57,43,.5)); }
+    .circle-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+    .pct-num { font-family:var(--font-h); font-size:3rem; font-weight:900; line-height:1; }
+    .pct-lbl { font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-top:4px; }
+
+    .res-title { font-family:var(--font-h); font-size:clamp(1.4rem,6vw,1.9rem); font-weight:900; text-align:center; line-height:1.2; margin-bottom:10px; }
+    .res-sub   { font-size:.88rem; color:var(--muted); text-align:center; max-width:310px; line-height:1.5; margin-bottom:30px; }
+
+    /* Barras detalhe */
+    .res-bars { width:100%; display:flex; flex-direction:column; gap:14px; margin-bottom:32px; }
+    .rbar { display:flex; flex-direction:column; gap:5px; }
+    .rbar-head { display:flex; justify-content:space-between; align-items:center; }
+    .rbar-name { font-size:.8rem; color:var(--white); font-weight:500; }
+    .rbar-pct  { font-size:.8rem; color:var(--muted); }
+    .rbar-track { height:6px; background:var(--border); border-radius:100px; overflow:hidden; }
+    .rbar-fill  { height:100%; border-radius:100px; background:linear-gradient(90deg,var(--red),var(--red-soft)); animation:fillBar .9s ease both; }
+
+    /* Respostas escritas */
+    .written-sec { width:100%; margin-bottom:30px; }
+    .written-title { font-size:.68rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:13px; }
+    .w-card { background:var(--card); border:1px solid var(--border); border-radius:13px; padding:15px; margin-bottom:9px; }
+    .w-q { font-size:.74rem; color:var(--muted); line-height:1.4; margin-bottom:6px; }
+    .w-a { font-family:var(--font-h); font-style:italic; font-size:.98rem; color:var(--white); line-height:1.4; }
+
+    .res-btns { width:100%; display:flex; flex-direction:column; gap:10px; }
+  </style>
+</head>
+<body>
+
+  <!-- ====================================================
+       TELA 1 — LANDING
+  ==================================================== -->
+  <div id="screen-landing" class="screen">
+    <div class="hero">
+      <span class="badge">⚠️ Acesso limitado hoje</span>
+      <h1 class="hero-title">Esse jogo está revelando verdades que casais <em>nunca disseram</em></h1>
+      <p class="hero-sub">Jogue por sua conta e risco. Algumas respostas vão mudar tudo.</p>
+      <button class="btn btn-primary" onclick="handleStart()" style="max-width:100%;">Começar agora →</button>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat"><span class="stat-num">12k+</span><span class="stat-label">casais jogando</span></div>
+      <div class="stat" style="border-left:1px solid var(--border);border-right:1px solid var(--border);padding:0 24px;">
+        <span class="stat-num">98%</span><span class="stat-label">conversas reais</span>
+      </div>
+      <div class="stat"><span class="stat-num">50+</span><span class="stat-label">perguntas</span></div>
+    </div>
+
+    <div class="urgency-bar">🔴 &nbsp;Apenas <strong id="spots-count">37</strong> acessos disponíveis hoje</div>
+    <button class="btn btn-primary" onclick="handleStart()">Quero revelar as verdades →</button>
+
+    <p class="sec-label" style="width:100%;max-width:420px;">O que casais estão dizendo</p>
+    <div class="social-proof">
+      <div class="testimonial"><span class="stars">★★★★★</span><p class="t-text">A gente namorou 4 anos e nunca tinha tido essa conversa. Em 20 minutos, soubemos mais um do outro do que em anos.</p><p class="t-author">— Ana Paula & Rafael, São Paulo</p></div>
+      <div class="testimonial"><span class="stars">★★★★★</span><p class="t-text">Achei que seria fácil. Não foi. Tivemos uma briga, nos reconciliamos e ficou tudo muito mais claro. Vale cada centavo.</p><p class="t-author">— Marcos, Belo Horizonte</p></div>
+      <div class="testimonial"><span class="stars">★★★★★</span><p class="t-text">Joguei no modo Proibido. Não vou mentir: foi intenso demais. Mas foi exatamente o que a gente precisava.</p><p class="t-author">— Ju ❤️, Rio de Janeiro</p></div>
+    </div>
+    <button class="btn btn-primary" onclick="handleStart()" style="margin-top:28px;">Desbloquear agora por R$9,90</button>
+    <p class="footer-note">Conteúdo adulto · 18+ · Uso privado do casal</p>
+  </div>
+
+
+  <!-- ====================================================
+       TELA 2 — PAYWALL
+  ==================================================== -->
+  <div id="screen-paywall" class="screen hidden">
+    <div class="pw-inner">
+      <div class="lock-icon">🔒</div>
+      <h2 class="pw-title">Desbloqueie o<br/>jogo completo</h2>
+      <p class="pw-sub">Acesso imediato a todas as perguntas + resultado de % de verdades do casal.</p>
+
+      <div class="price-box">
+        <p class="p-orig">De R$29,90</p>
+        <p class="p-main"><sup>R$</sup>9<span style="font-size:1.5rem">,90</span></p>
+        <p class="p-desc">Pagamento único · Acesso vitalício</p>
+        <ul class="p-perks">
+          <li><span>✓</span><span>50+ perguntas em 3 níveis de intensidade</span></li>
+          <li><span>✓</span><span>5 opções por pergunta + campo de escrita livre</span></li>
+          <li><span>✓</span><span>Resultado: % de verdade do casal com análise</span></li>
+          <li><span>✓</span><span>Modo Proibido 💀 exclusivo</span></li>
+        </ul>
+      </div>
+
+      <div id="pay-btn-wrap" style="width:100%;max-width:420px;display:flex;flex-direction:column;gap:10px;">
+        <button class="btn btn-primary" onclick="goToPayment()">🔓 Desbloquear agora — R$9,90</button>
+        <button class="btn btn-secondary" onclick="goTo('screen-landing')">← Voltar</button>
+      </div>
+      <div id="payment-loading" class="hidden">
+        <div class="spinner"></div>
+        <p style="color:var(--muted);font-size:.83rem;">Redirecionando para pagamento seguro…</p>
+      </div>
+      <p class="secure-note">🔐 Pagamento 100% seguro · Mercado Pago / Cartão / Pix</p>
+    </div>
+  </div>
+
+
+  <!-- ====================================================
+       TELA 3 — SELEÇÃO DE MODO
+  ==================================================== -->
+  <div id="screen-modes" class="screen hidden">
+    <div class="modes-header">
+      <h2>Escolham o nível de intensidade</h2>
+      <p>Quanto mais fundo, mais verdade. Cuidado com o que vão descobrir.</p>
+    </div>
+    <div class="modes-grid">
+      <div class="mode-card" onclick="startGame('leve')">
+        <span class="mode-emoji">😌</span>
+        <div class="mode-info"><p class="mode-name">Leve</p><p class="mode-desc">Conexão, memórias e sentimentos. Ideal para aquecer.</p></div>
+        <span class="mode-arr">›</span>
+      </div>
+      <div class="mode-card" onclick="startGame('intenso')">
+        <span class="mode-emoji">😈</span>
+        <div class="mode-info"><p class="mode-name">Intenso</p><p class="mode-desc">Medos, desejos e segredos. A coisa começa a pegar fogo.</p></div>
+        <span class="mode-arr">›</span>
+      </div>
+      <div class="mode-card" onclick="startGame('proibido')" style="border-color:rgba(192,57,43,.4);">
+        <span class="mode-emoji">💀</span>
+        <div class="mode-info"><p class="mode-name">Proibido</p><p class="mode-desc">Sem filtro. Apenas para quem aguentar a verdade crua.</p></div>
+        <span class="mode-arr" style="color:var(--red);">›</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ====================================================
+       TELA 4 — JOGO
+  ==================================================== -->
+  <div id="screen-game" class="screen hidden">
+    <div class="game-header">
+      <span class="mode-pill" id="mode-label">Leve</span>
+      <span class="counter" id="q-counter">1 / 10</span>
+    </div>
+    <div class="prog-wrap"><div class="prog-fill" id="prog-fill" style="width:5%;"></div></div>
+
+    <div class="q-wrap">
+      <p class="q-num" id="q-num">Pergunta 1</p>
+      <p class="q-text" id="q-text">…</p>
+    </div>
+
+    <!-- Opções injetadas dinamicamente -->
+    <div class="opts-wrap" id="opts-wrap"></div>
+
+    <button class="btn btn-next" id="btn-next" onclick="nextQuestion()" disabled>Próxima pergunta →</button>
+    <button class="game-skip" onclick="skipQuestion()">Pular esta pergunta</button>
+  </div>
+
+
+  <!-- ====================================================
+       TELA 5 — RESULTADO DE VERDADES
+  ==================================================== -->
+  <div id="screen-result" class="screen hidden">
+    <div class="res-inner">
+      <p class="res-mode-lbl" id="res-mode-lbl">Modo: Leve 😌</p>
+
+      <!-- Círculo de % -->
+      <div class="circle-wrap">
+        <svg class="circle-svg" viewBox="0 0 180 180">
+          <circle class="c-track" cx="90" cy="90" r="80"/>
+          <circle class="c-fill"  id="c-fill"  cx="90" cy="90" r="80"/>
+        </svg>
+        <div class="circle-center">
+          <span class="pct-num" id="pct-num">0%</span>
+          <span class="pct-lbl">de verdade</span>
+        </div>
+      </div>
+
+      <h2 class="res-title" id="res-title">…</h2>
+      <p  class="res-sub"   id="res-sub">…</p>
+
+      <!-- Barras de detalhe -->
+      <div class="res-bars" id="res-bars"></div>
+
+      <!-- Respostas escritas -->
+      <div class="written-sec hidden" id="written-sec">
+        <p class="written-title">✍️ O que vocês escreveram</p>
+        <div id="written-list"></div>
+      </div>
+
+      <div class="res-btns">
+        <button class="btn btn-primary"   onclick="goTo('screen-modes')">Jogar outro modo</button>
+        <button class="btn btn-secondary" onclick="restartCurrentMode()">Jogar novamente (embaralhar)</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ====================================================
+       JAVASCRIPT
+  ==================================================== -->
+  <script>
+    /* ============================================================
+       BANCO DE PERGUNTAS
+       Cada entrada:  { q, opts[4], weights[4] }
+       - opts:    4 respostas de múltipla escolha
+       - weights: peso de "verdade" de cada opção (0.0–1.0)
+         0.0 = evitou / 1.0 = verdade plena
+       A 5ª opção é sempre campo de escrita livre (peso = 1.0)
+    ============================================================ */
+    const QUESTIONS = {
+
+      /* --------- MODO LEVE 😌 --------- */
+      leve: [
+        {
+          q: "Qual foi o momento exato em que percebeu que estava apaixonado(a) por mim?",
+          opts: ["Lembro bem — foi num momento específico","Foi aos poucos, sem um instante exato","Ainda estou descobrindo isso","Prefiro não responder agora"],
+          weights: [1.0, 0.8, 0.6, 0.05]
+        },
+        {
+          q: "O que você mais admira em mim que nunca me disse diretamente?",
+          opts: ["Minha força nos momentos difíceis","A forma como cuido das pessoas ao meu redor","Minha inteligência e criatividade","Minha honestidade — mesmo quando dói"],
+          weights: [0.85, 0.85, 0.85, 0.95]
+        },
+        {
+          q: "O que você sentiria se eu sumisse por uma semana sem avisar?",
+          opts: ["Ficaria desesperado(a) e assustado(a)","Ficaria com raiva — depois aliviado(a)","Aproveitaria o espaço, mas sentiria falta","Fingiria que tá bem, mas estaria destruído(a)"],
+          weights: [0.9, 0.85, 0.8, 1.0]
+        },
+        {
+          q: "Como você imagina a gente daqui a 10 anos?",
+          opts: ["Juntos, em casa própria com filhos","Juntos, mas sem certeza do que vem","Não consigo visualizar tanto assim","Honestamente não sei se estaremos juntos"],
+          weights: [0.7, 0.85, 0.8, 1.0]
+        },
+        {
+          q: "Existe algo que você queria que eu fizesse mais no dia a dia?",
+          opts: ["Me dar mais atenção e carinho","Me ouvir de verdade quando falo","Demonstrar mais afeto fisicamente","Tudo está bem como está"],
+          weights: [0.9, 0.9, 0.9, 0.3]
+        },
+        {
+          q: "O que te dá mais segurança no nosso relacionamento?",
+          opts: ["Saber que posso contar com você sempre","A rotina e estabilidade que temos","A honestidade entre nós","Ainda estou construindo essa segurança"],
+          weights: [0.85, 0.75, 0.95, 1.0]
+        },
+        {
+          q: "O que você pensou da primeira vez que me viu?",
+          opts: ["Que queria te conhecer de qualquer jeito","Que você era bonito(a), mas não pensei além","Que tínhamos algo em comum","Honestamente não me lembro bem"],
+          weights: [0.85, 0.75, 0.8, 0.65]
+        },
+        {
+          q: "Tem algo pequeno que eu faço que te deixa muito feliz?",
+          opts: ["Quando me manda mensagem do nada","Quando me escolhe na frente de todo mundo","Quando lembra de detalhes que eu conto","Quando fica em silêncio comigo sem precisar falar"],
+          weights: [0.85, 0.9, 0.9, 0.9]
+        },
+        {
+          q: "O que você diria se soubesse que seria a última vez que nos veríamos?",
+          opts: ["Que te amo mais do que você imagina","Que me arrependo de não ter sido mais presente","Que você mudou quem eu sou","Não consigo nem imaginar isso"],
+          weights: [0.9, 1.0, 0.9, 0.45]
+        },
+        {
+          q: "Se tivesse que descrever nosso relacionamento com uma só palavra, qual seria?",
+          opts: ["Lar","Crescimento","Intensidade","Complicado"],
+          weights: [0.75, 0.85, 0.85, 1.0]
+        },
+      ],
+
+      /* --------- MODO INTENSO 😈 --------- */
+      intenso: [
+        {
+          q: "Você já escondeu algo importante de mim?",
+          opts: ["Não, nunca escondi nada relevante","Sim, mas era para te proteger","Sim — porque tinha medo da sua reação","Prefiro não responder isso agora"],
+          weights: [0.45, 0.8, 1.0, 0.05]
+        },
+        {
+          q: "Já teve um momento em que pensou em terminar comigo?",
+          opts: ["Nunca pensei nisso de verdade","Pensei, mas passou rápido","Pensei sério — e foi assustador","Passo por isso de vez em quando"],
+          weights: [0.35, 0.85, 1.0, 1.0]
+        },
+        {
+          q: "Existe alguém do seu passado que ainda ocupa espaço nos seus pensamentos?",
+          opts: ["Não, aquilo ficou no passado","Às vezes, por saudade — não por amor","Sim, mas não significa que sinto falta","Prefiro não entrar nesse assunto"],
+          weights: [0.55, 0.9, 1.0, 0.05]
+        },
+        {
+          q: "Tem alguma crítica que você quer me fazer há tempos mas nunca teve coragem?",
+          opts: ["Não, falo o que penso normalmente","Sim — sobre a forma como você me trata às vezes","Sim — sobre algo que você nunca percebe em si mesmo(a)","Tenho, mas não é o momento agora"],
+          weights: [0.35, 0.95, 1.0, 0.45]
+        },
+        {
+          q: "Você já mentiu para mim?",
+          opts: ["Não, nunca menti de verdade","Sim — mentiras pequenas para evitar brigas","Sim — sobre algo que me envergonhava","Prefiro não responder"],
+          weights: [0.45, 0.85, 1.0, 0.05]
+        },
+        {
+          q: "Você se sente completamente livre para ser você mesmo(a) comigo?",
+          opts: ["Sim, totalmente","Quase sempre, mas guardo algumas coisas","Não muito — adapto quem sou para te agradar","Às vezes me sinto julgado(a) por você"],
+          weights: [0.65, 0.85, 1.0, 1.0]
+        },
+        {
+          q: "O que você mais teme que aconteça com a gente?",
+          opts: ["Que a gente se afaste aos poucos sem perceber","Que um dia você não me ame mais","Que eu decepcione você de um jeito sem volta","Que a rotina mate o que a gente tem"],
+          weights: [0.85, 0.9, 1.0, 0.85]
+        },
+        {
+          q: "Já se sentiu solitário(a) mesmo estando ao meu lado?",
+          opts: ["Não, nunca","Às vezes, quando você está distante","Sim, mais vezes do que imagina","Sim — e isso me machuca mais do que a solidão real"],
+          weights: [0.35, 0.85, 1.0, 1.0]
+        },
+        {
+          q: "Tem algo que aconteceu entre a gente que você ainda não conseguiu superar?",
+          opts: ["Não, já superei tudo","Tem uma coisa que ainda me incomoda","Tem — e muda como te vejo até hoje","Não quero abrir isso agora"],
+          weights: [0.45, 0.85, 1.0, 0.15]
+        },
+        {
+          q: "O que você precisaria que mudasse para se sentir mais feliz aqui?",
+          opts: ["Mais tempo de qualidade juntos","Mais abertura para conversas difíceis","Mais reconhecimento pelo meu esforço","Estou feliz como está"],
+          weights: [0.85, 0.9, 0.95, 0.35]
+        },
+      ],
+
+      /* --------- MODO PROIBIDO 💀 --------- */
+      proibido: [
+        {
+          q: "Você já pensou em trair? O que te impediu?",
+          opts: ["Nunca passou pela minha cabeça","Pensei, mas o amor por você me parou","Pensei — e foi o medo das consequências","Prefiro não responder"],
+          weights: [0.35, 0.9, 1.0, 0.02]
+        },
+        {
+          q: "Tem alguém com quem você se relacionaria se eu não existisse na sua vida?",
+          opts: ["Não, não tem ninguém assim","Talvez — mas não passo disso","Sim, já pensei nisso — e me assusta","Não vou responder isso"],
+          weights: [0.45, 0.85, 1.0, 0.02]
+        },
+        {
+          q: "Existe algo sexual que você deseja e tem vergonha de pedir?",
+          opts: ["Não, já falo o que quero sem problema","Sim, mas ainda não sei como trazer isso","Sim — e tenho medo da sua reação","Prefiro não entrar nisso aqui"],
+          weights: [0.65, 0.9, 1.0, 0.05]
+        },
+        {
+          q: "Você já deixou de ser feliz por causa de decisões que tomou por mim?",
+          opts: ["Não, nossas decisões foram sempre juntos","Abri mão de coisas, mas sem arrependimento","Sim — e ainda carrego isso","Não quero pensar nisso agora"],
+          weights: [0.45, 0.8, 1.0, 0.05]
+        },
+        {
+          q: "Se pudesse recomeçar, você me escolheria novamente?",
+          opts: ["Sim, sem hesitar","Sim, mas faria muita coisa diferente","Não tenho certeza — e isso me assusta","Honestamente não sei"],
+          weights: [0.55, 0.85, 1.0, 1.0]
+        },
+        {
+          q: "Já pensou: 'seria mais fácil sem ele(a)'?",
+          opts: ["Nunca pensei isso","Já passou pela cabeça num momento de raiva","Sim — e fico em dúvida se estava certo(a)","Sim, com mais frequência do que gostaria de admitir"],
+          weights: [0.35, 0.8, 1.0, 1.0]
+        },
+        {
+          q: "Existe uma versão de você que ficou para trás quando ficou comigo?",
+          opts: ["Não, cresci sendo quem sou ao seu lado","Larguei coisas, mas foi uma escolha boa","Sim — e às vezes sinto falta dessa versão","Sim, e não sei se me perdoo por isso"],
+          weights: [0.55, 0.8, 1.0, 1.0]
+        },
+        {
+          q: "Existe algo que você quer da vida mas sente que não pode buscar por estar comigo?",
+          opts: ["Não, você não me limita","Às vezes sinto que ajustei sonhos por nós","Sim, tem uma coisa que abri mão por você","Sim — e isso cria ressentimento em mim"],
+          weights: [0.55, 0.85, 1.0, 1.0]
+        },
+        {
+          q: "O que você guarda que teria vergonha se eu soubesse?",
+          opts: ["Nada que me envergonharia","Pensamentos que às vezes aparecem sem querer","Um desejo que nunca vou te contar","Prefiro nem ir nesse caminho agora"],
+          weights: [0.45, 0.9, 1.0, 0.05]
+        },
+        {
+          q: "Você acha que eu sei o quanto te machuquei em algum momento?",
+          opts: ["Acho que sim, percebemos isso juntos","Acho que você não tem noção","Não — e às vezes preciso lembrar de não guardar rancor","Você sabe — mas nunca pediu desculpas de verdade"],
+          weights: [0.55, 1.0, 1.0, 1.0]
+        },
+      ],
+    };
+
+    /* ============================================================
+       ESTADO GLOBAL
+    ============================================================ */
+    let currentMode       = 'leve';
+    let currentIndex      = 0;
+    let shuffledQuestions = [];
+    let selectedAnswer    = null; // { optIndex, weight, written }
+    let answers           = [];   // histórico da rodada
+    let paidAccess        = false;
+
+    /* ============================================================
+       NAVEGAÇÃO
+    ============================================================ */
+    function goTo(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+      const el = document.getElementById(id);
+      el.classList.remove('hidden');
+      el.style.animation = 'none';
+      el.offsetHeight;
+      el.style.animation = '';
+      window.scrollTo({ top:0, behavior:'smooth' });
+    }
+
+    /* ============================================================
+       ACESSO / PAGAMENTO
+    ============================================================ */
+    function handleStart() {
+      if (paidAccess || localStorage.getItem('jvp_acesso') === '1') {
+        goTo('screen-modes');
+      } else {
+        goTo('screen-paywall');
+      }
+    }
+
+    /* ============================================================
+       LINK DE PAGAMENTO — MERCADO PAGO
+       Configure a URL de retorno no painel do Mercado Pago
+       para: https://seusite.com/?pago=true
+    ============================================================ */
+    const MP_LINK = 'https://mpago.la/1XYvtma';
+
+    /* Redireciona para o checkout do Mercado Pago */
+    function goToPayment() {
+      document.getElementById('pay-btn-wrap').classList.add('hidden');
+      document.getElementById('payment-loading').classList.remove('hidden');
+      /* Pequeno delay para mostrar o loading antes de sair da página */
+      setTimeout(() => {
+        window.location.href = MP_LINK;
+      }, 600);
+    }
+
+    /* Retorno após pagamento aprovado pelo Mercado Pago
+       O MP redireciona para: seusite.com/?pago=true
+       Configure isso em: Sua conta MP → Link de pagamento → Editar → URL de retorno */
+    function checkPaymentReturn() {
+      const p = new URLSearchParams(window.location.search);
+      /* Aceita ?pago=true (seu redirect manual) ou ?status=approved (redirect automático do MP) */
+      if (p.get('pago') === 'true' || p.get('status') === 'approved') {
+        localStorage.setItem('jvp_acesso','1');
+        paidAccess = true;
+        /* Limpa a URL sem recarregar a página */
+        window.history.replaceState({}, '', window.location.pathname);
+        goTo('screen-modes');
+      }
+    }
+
+    /* ============================================================
+       LÓGICA DO JOGO
+    ============================================================ */
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function startGame(mode) {
+      currentMode       = mode;
+      currentIndex      = 0;
+      answers           = [];
+      shuffledQuestions = shuffle(QUESTIONS[mode]);
+
+      const labels = { leve:'😌 Leve', intenso:'😈 Intenso', proibido:'💀 Proibido' };
+      document.getElementById('mode-label').textContent = labels[mode];
+
+      renderQuestion();
+      goTo('screen-game');
+    }
+
+    /* Renderiza pergunta + 4 opções + campo livre */
+    function renderQuestion() {
+      const total = shuffledQuestions.length;
+      const item  = shuffledQuestions[currentIndex];
+      selectedAnswer = null;
+
+      /* Anima pergunta */
+      const qtEl = document.getElementById('q-text');
+      qtEl.style.animation = 'none'; qtEl.offsetHeight;
+      qtEl.style.animation = 'cardIn .4s cubic-bezier(.34,1.56,.64,1) both';
+      qtEl.textContent = item.q;
+
+      document.getElementById('q-num').textContent     = `Pergunta ${currentIndex + 1}`;
+      document.getElementById('q-counter').textContent = `${currentIndex + 1} / ${total}`;
+
+      const pct = Math.round(((currentIndex + 1) / total) * 100);
+      document.getElementById('prog-fill').style.width = pct + '%';
+
+      document.getElementById('btn-next').disabled = true;
+
+      const wrap = document.getElementById('opts-wrap');
+      wrap.innerHTML = '';
+
+      /* 4 opções de múltipla escolha */
+      item.opts.forEach((txt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'opt-btn';
+        btn.innerHTML = `<span class="opt-dot"><span class="dot-chk">✓</span></span><span>${txt}</span>`;
+        btn.addEventListener('click', () => {
+          wrap.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('sel'));
+          wrap.querySelectorAll('.opt-free').forEach(b => { b.classList.remove('sel'); const ta = b.querySelector('textarea'); if (ta) ta.value = ''; });
+          btn.classList.add('sel');
+          selectedAnswer = { optIndex: i, weight: item.weights[i], written: null };
+          document.getElementById('btn-next').disabled = false;
+        });
+        wrap.appendChild(btn);
+      });
+
+      /* 5ª opção — campo de escrita livre */
+      const freeDiv = document.createElement('div');
+      freeDiv.className = 'opt-free';
+      freeDiv.innerHTML = `
+        <span class="free-label">✍️ Escreva sua resposta</span>
+        <textarea class="free-ta" id="free-ta" placeholder="Escreva aqui o que realmente sente…" rows="3"></textarea>
+      `;
+      wrap.appendChild(freeDiv);
+
+      /* Ativa a opção livre ao digitar */
+      setTimeout(() => {
+        const ta = document.getElementById('free-ta');
+        if (!ta) return;
+        ta.addEventListener('input', () => {
+          const hasText = ta.value.trim().length > 0;
+          /* desmarca opções de múltipla escolha */
+          wrap.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('sel'));
+          freeDiv.classList.toggle('sel', hasText);
+          selectedAnswer = hasText ? { optIndex: 4, weight: 1.0, written: ta.value.trim() } : null;
+          document.getElementById('btn-next').disabled = !hasText;
+        });
+      }, 40);
+    }
+
+    /* Avança para a próxima pergunta */
+    function nextQuestion() {
+      if (!selectedAnswer) return;
+
+      const item = shuffledQuestions[currentIndex];
+      answers.push({
+        question: item.q,
+        optText:  selectedAnswer.optIndex < 4 ? item.opts[selectedAnswer.optIndex] : selectedAnswer.written,
+        weight:   selectedAnswer.weight,
+        written:  selectedAnswer.written,
+      });
+
+      if (currentIndex < shuffledQuestions.length - 1) {
+        currentIndex++;
+        renderQuestion();
+        window.scrollTo({ top:0, behavior:'smooth' });
+      } else {
+        showResult();
+      }
+    }
+
+    /* Pula pergunta sem pontuação */
+    function skipQuestion() {
+      answers.push({
+        question: shuffledQuestions[currentIndex].q,
+        optText:  '— pulada —',
+        weight:   0,
+        written:  null,
+        skipped:  true,
+      });
+      if (currentIndex < shuffledQuestions.length - 1) {
+        currentIndex++;
+        renderQuestion();
+        window.scrollTo({ top:0, behavior:'smooth' });
+      } else {
+        showResult();
+      }
+    }
+
+    function restartCurrentMode() { startGame(currentMode); }
+
+    /* ============================================================
+       TELA DE RESULTADO
+    ============================================================ */
+    function showResult() {
+      const answered = answers.filter(a => !a.skipped);
+      const sumW     = answered.reduce((s, a) => s + a.weight, 0);
+      const pct      = answered.length ? Math.round((sumW / answered.length) * 100) : 0;
+
+      /* Divide em duas metades para detalhes */
+      const half  = Math.floor(answered.length / 2) || 1;
+      const pct1  = calcPct(answered.slice(0, half));
+      const pct2  = calcPct(answered.slice(half));
+      const pctFr = calcPct(answered.filter(a => a.written));
+      const pctSk = answers.length ? Math.round((answers.filter(a => a.skipped).length / answers.length) * 100) : 0;
+
+      /* Labels */
+      const modeLabels = { leve:'Leve 😌', intenso:'Intenso 😈', proibido:'Proibido 💀' };
+      document.getElementById('res-mode-lbl').textContent = `Modo: ${modeLabels[currentMode]}`;
+
+      const t = getTitles(pct);
+      document.getElementById('res-title').textContent = t.title;
+      document.getElementById('res-sub').textContent   = t.sub;
+
+      goTo('screen-result');
+
+      /* Anima círculo após frame */
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const circ   = 2 * Math.PI * 80; // ~502.65
+        document.getElementById('c-fill').style.strokeDashoffset = circ * (1 - pct / 100);
+        animateNum('pct-num', 0, pct, 1500, v => v + '%');
+      }));
+
+      /* Barras de detalhe */
+      const barsEl = document.getElementById('res-bars');
+      barsEl.innerHTML = '';
+      [
+        { name:'Primeiras perguntas',    pct:pct1 },
+        { name:'Perguntas finais',        pct:pct2 },
+        { name:'Respostas escritas',      pct:pctFr },
+        { name:'Perguntas puladas',       pct:pctSk, inv:true },
+        { name:'Índice geral de verdade', pct },
+      ].forEach(b => {
+        barsEl.insertAdjacentHTML('beforeend', `
+          <div class="rbar">
+            <div class="rbar-head">
+              <span class="rbar-name">${b.name}</span>
+              <span class="rbar-pct">${b.pct}%</span>
+            </div>
+            <div class="rbar-track">
+              <div class="rbar-fill" style="width:${b.pct}%;${b.inv ? 'background:linear-gradient(90deg,#555,#333)' : ''}"></div>
+            </div>
+          </div>
+        `);
+      });
+
+      /* Respostas escritas */
+      const written = answers.filter(a => a.written);
+      const wsEl    = document.getElementById('written-sec');
+      const wlEl    = document.getElementById('written-list');
+      if (written.length > 0) {
+        wsEl.classList.remove('hidden');
+        wlEl.innerHTML = written.map(a => `
+          <div class="w-card">
+            <p class="w-q">${a.question}</p>
+            <p class="w-a">"${a.written}"</p>
+          </div>
+        `).join('');
+      } else {
+        wsEl.classList.add('hidden');
+      }
+    }
+
+    function calcPct(arr) {
+      if (!arr || !arr.length) return 0;
+      return Math.round(arr.reduce((s, a) => s + a.weight, 0) / arr.length * 100);
+    }
+
+    function getTitles(p) {
+      if (p >= 90) return { title:'Vocês são incrivelmente honestos.', sub:'Poucas pessoas chegam aqui. Esse nível de verdade é raro — e muito corajoso.' };
+      if (p >= 75) return { title:'Quase sem filtro.', sub:'Vocês foram longe. Ainda há camadas a explorar — mas essa coragem já é transformadora.' };
+      if (p >= 55) return { title:'A verdade veio pela metade.', sub:'Alguns muros ainda estão de pé. O que ficou para trás pode ser o que mais importa.' };
+      if (p >= 35) return { title:'Muitos guardados.', sub:'Vocês se protegeram muito — um ao outro, ou a si mesmos. A verdade ainda espera.' };
+      return { title:'O silêncio foi o protagonista.', sub:'Algumas verdades são pesadas demais para esse momento. Tudo bem — mas elas não somem.' };
+    }
+
+    function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+    function animateNum(id, from, to, dur, fmt) {
+      const el = document.getElementById(id);
+      const t0 = performance.now();
+      (function step(now) {
+        const x   = Math.min((now - t0) / dur, 1);
+        el.textContent = fmt(Math.round(from + (to - from) * easeOut(x)));
+        if (x < 1) requestAnimationFrame(step);
+      })(t0);
+    }
+
+    /* ============================================================
+       ESCASSEZ — decrementa vagas
+    ============================================================ */
+    (function() {
+      let s = 37;
+      const el = document.getElementById('spots-count');
+      if (!el) return;
+      setInterval(() => { if (s > 5) { s--; el.textContent = s; } }, 90000);
+    })();
+
+    /* Verifica retorno de pagamento externo */
+    checkPaymentReturn();
+  </script>
+</body>
+</html>
